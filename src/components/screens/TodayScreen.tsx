@@ -273,14 +273,14 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({ onNavigate }) => {
                     {predictiveSummary.highestRiskDay ? (
                       <>
                         Projected Risk Day: <strong className="text-teal-200">{predictiveSummary.highestRiskDay.dayOfWeek} ({predictiveSummary.highestRiskDay.dateStr})</strong>
-                        {' · '}{predictiveSummary.highestRiskDay.riskScore}% Probability of Recurrence
+                        {' · '}{predictiveSummary.highestRiskDay.overallRiskScore}% Probability of Recurrence
                       </>
                     ) : (
                       'No elevated symptom recurrence projected for the next 7 days'
                     )}
                   </h4>
                   <p className="text-xs text-slate-300 mt-1">
-                    {predictiveSummary.overallSummary}
+                    {predictiveSummary.clinicalNarrative}
                   </p>
                 </div>
               </div>
@@ -712,10 +712,10 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({ onNavigate }) => {
                 </span>
               </div>
               <h3 className="text-sm sm:text-base font-bold text-slate-100 mt-0.5">
-                {predictiveSummary.highestRiskDay.dayOfWeek} ({predictiveSummary.highestRiskDay.dateStr}) · {predictiveSummary.highestRiskDay.riskScore}% recurrence probability
+                {predictiveSummary.highestRiskDay.dayOfWeek} ({predictiveSummary.highestRiskDay.dateStr}) · {predictiveSummary.highestRiskDay.overallRiskScore}% recurrence probability
               </h3>
               <p className="text-xs text-slate-300 mt-0.5">
-                Historical symptom logs show a 3–4 day recurrence cycle for {predictiveSummary.highestRiskDay.dominantCategory.toLowerCase()} symptoms.
+                Historical symptom logs show a 3–4 day recurrence cycle for {predictiveSummary.highestRiskDay.topCategory.toLowerCase()} symptoms.
               </p>
             </div>
           </div>

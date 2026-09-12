@@ -620,7 +620,7 @@ export const PrescriptionOcrScanner: React.FC<PrescriptionOcrScannerProps> = ({
                   </button>
                   <button
                     type="button"
-                    onClick={handleEnhanceContrast}
+                    onClick={() => handleEnhanceContrast()}
                     className="px-3 py-1.5 bg-white border border-amber-300 hover:bg-amber-100 rounded-lg font-bold text-amber-900 flex items-center gap-1 cursor-pointer"
                   >
                     <Contrast className="w-3.5 h-3.5" />
@@ -1175,7 +1175,7 @@ export const PrescriptionOcrScanner: React.FC<PrescriptionOcrScannerProps> = ({
                   </button>
                   <button
                     type="button"
-                    onClick={handleEnhanceContrast}
+                    onClick={() => handleEnhanceContrast()}
                     className="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 rounded-lg text-xs font-semibold text-slate-700 flex items-center gap-1 cursor-pointer"
                   >
                     <Contrast className="w-3.5 h-3.5" />

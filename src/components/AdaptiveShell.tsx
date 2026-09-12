@@ -21,6 +21,9 @@ import {
   Moon,
   Sun,
   Eye,
+  Copy,
+  Check,
+  ArrowRightLeft,
 } from 'lucide-react';
 import { useAdaptive } from '../context/AdaptiveContext';
 import { TodayScreen } from './screens/TodayScreen';
@@ -28,6 +31,9 @@ import { MedicinesScreen } from './screens/MedicinesScreen';
 import { SymptomsScreen } from './screens/SymptomsScreen';
 import { AskSathiScreen } from './screens/AskSathiScreen';
 import { TimelineDocsScreen } from './screens/TimelineDocsScreen';
+import { SplashScreen } from './screens/SplashScreen';
+import { CaretakerDashboardScreen } from './screens/CaretakerDashboardScreen';
+import { SaathiLogo } from './ui/SaathiLogo';
 import { EmergencyModal } from './EmergencyModal';
 import { CareCircleModal } from './CareCircleModal';
 import { PitchGuideDrawer } from './PitchGuideDrawer';
@@ -39,6 +45,8 @@ import { AppLanguage } from '../types';
 
 export const AdaptiveShell: React.FC = () => {
   const {
+    appMode,
+    setAppMode,
     profile,
     availableProfiles,
     switchProfileById,
@@ -52,6 +60,10 @@ export const AdaptiveShell: React.FC = () => {
     isHighContrastDark,
     lastFeedbackNotice,
     clearFeedbackNotice,
+    activeLowSupplyNotice,
+    dismissLowSupplyNotice,
+    refillMedication,
+    medications,
     openVoiceLogger,
     openOnboarding,
   } = useAdaptive();
@@ -61,18 +73,47 @@ export const AdaptiveShell: React.FC = () => {
   const [isLangMenuOpen, setIsLangMenuOpen] = useState(false);
   const [isCareCircleOpen, setIsCareCircleOpen] = useState(false);
   const [themeToast, setThemeToast] = useState<string | null>(null);
+  const [copiedPatientId, setCopiedPatientId] = useState(false);
+
+  // If in Splash Mode, show Splash Screen
+  if (appMode === 'splash') {
+    return (
+      <SplashScreen
+        onEnterPatient={() => setAppMode('patient')}
+        onEnterCaretaker={() => setAppMode('caretaker')}
+      />
+    );
+  }
+
+  // If in Caretaker Mode, show Caretaker Dashboard
+  if (appMode === 'caretaker') {
+    return (
+      <CaretakerDashboardScreen
+        onSwitchToPatientView={() => setAppMode('patient')}
+        onLogoutToSplash={() => setAppMode('splash')}
+      />
+    );
+  }
 
   const handleToggleTheme = () => {
     toggleTheme();
     const nextTheme = theme === 'light' ? 'dark' : 'light';
     setThemeToast(
       nextTheme === 'dark'
-        ? 'High-Contrast Dark Mode active: Glare-free obsidian palette with high text contrast for eye strain & migraine relief.'
+        ? 'Obsidian Dark Mode active: Glare-free high-contrast palette for eye strain & migraine relief.'
         : 'Daylight Mode active: Standard high-readability healthcare layout.'
     );
     setTimeout(() => {
       setThemeToast(null);
     }, 4000);
+  };
+
+  const handleCopyPatientId = () => {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(profile.patientCode || 'PAT-8492');
+      setCopiedPatientId(true);
+      setTimeout(() => setCopiedPatientId(false), 2000);
+    }
   };
 
   const isElder = profile.ageBand === 'elder';
@@ -122,36 +163,49 @@ export const AdaptiveShell: React.FC = () => {
         id="sathi-header"
         className={`sticky top-0 z-30 border-b backdrop-blur-md transition-all ${
           isElder
-            ? 'bg-white/95 border-emerald-900/20 py-3 shadow-xs'
-            : 'bg-white/90 border-slate-200 py-2.5 shadow-xs'
+            ? 'bg-white/95 dark:bg-[#0f172a]/95 border-emerald-900/20 py-3 shadow-xs'
+            : 'bg-white/90 dark:bg-[#0f172a]/95 border-slate-200 dark:border-slate-800 py-2.5 shadow-xs'
         }`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between gap-3">
           {/* Logo & Tagline */}
           <div className="flex items-center gap-3">
-            <div className={`rounded-xl flex items-center justify-center font-black ${
-              isElder ? 'w-11 h-11 bg-emerald-800 text-white text-xl' : 'w-9 h-9 bg-emerald-700 text-white text-base'
-            }`}>
-              <Heart className={isElder ? 'w-6 h-6 fill-white' : 'w-5 h-5 fill-white'} />
-            </div>
+            <SaathiLogo size={isElder ? 'md' : 'sm'} showSubtitle={false} />
             <div>
               <div className="flex items-center gap-2">
-                <span className={`font-black tracking-tight ${isElder ? 'text-2xl text-emerald-950' : 'text-xl text-slate-900'}`}>
-                  SATHI
-                </span>
                 <span className={`px-2 py-0.5 rounded-full font-bold uppercase tracking-wider text-[10px] ${
                   isElder
-                    ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                    ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-900 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700'
                     : isMinor
-                    ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                    ? 'bg-amber-100 dark:bg-amber-950 text-amber-900 dark:text-amber-300 border border-amber-300 dark:border-amber-700'
                     : isCaregiver
-                    ? 'bg-purple-100 text-purple-900 border border-purple-300'
-                    : 'bg-sky-100 text-sky-900 border border-sky-300'
+                    ? 'bg-purple-100 dark:bg-purple-950 text-purple-900 dark:text-purple-300 border border-purple-300 dark:border-purple-700'
+                    : 'bg-sky-100 dark:bg-sky-950 text-sky-900 dark:text-sky-300 border border-sky-300 dark:border-sky-700'
                 }`}>
-                  {isElder ? 'Elder Mode' : isMinor ? 'Guardian Pediatric' : isCaregiver ? 'Caregiver View' : 'Standard Recovery'}
+                  {isElder ? 'Elder Mode' : isMinor ? 'Guardian Pediatric' : isCaregiver ? 'Caregiver View' : 'Patient Recovery'}
                 </span>
+
+                {/* Patient ID Tag with 1-click Copy for Caretaker */}
+                <button
+                  type="button"
+                  onClick={handleCopyPatientId}
+                  title="Copy your Patient ID to share with your caretaker"
+                  className="hidden md:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 transition-colors cursor-pointer"
+                >
+                  {copiedPatientId ? (
+                    <>
+                      <Check className="w-2.5 h-2.5 text-emerald-500" />
+                      <span className="text-emerald-600 dark:text-emerald-400">ID Copied</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-2.5 h-2.5" />
+                      <span>ID: {profile.patientCode || 'PAT-8492'}</span>
+                    </>
+                  )}
+                </button>
               </div>
-              <p className="text-[11px] text-slate-500 hidden sm:block">
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 hidden sm:block">
                 Healthcare that adapts to the person, not the other way around
               </p>
             </div>
@@ -197,10 +251,22 @@ export const AdaptiveShell: React.FC = () => {
               id="header-care-circle-button"
               type="button"
               onClick={() => setIsCareCircleOpen(true)}
-              className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 hidden sm:flex items-center gap-1.5 cursor-pointer min-h-[38px]"
+              className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-200 hidden sm:flex items-center gap-1.5 cursor-pointer min-h-[38px]"
             >
-              <ShieldCheck className="w-4 h-4 text-emerald-700" />
+              <ShieldCheck className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
               <span>Care Circle</span>
+            </button>
+
+            {/* Switch to Caretaker Portal Button */}
+            <button
+              id="header-caretaker-switch-button"
+              type="button"
+              onClick={() => setAppMode('caretaker')}
+              title="Switch to Caretaker Monitoring Hub"
+              className="px-2.5 py-1.5 bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/60 dark:hover:bg-purple-900 border border-purple-300 dark:border-purple-700 rounded-xl text-xs font-bold text-purple-900 dark:text-purple-300 flex items-center gap-1.5 cursor-pointer min-h-[38px] transition-colors"
+            >
+              <ArrowRightLeft className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+              <span className="hidden sm:inline">Caretaker Mode</span>
             </button>
 
             {/* Global Theme Toggle: Light vs High-Contrast Dark Mode for Eye Strain & Migraine */}
@@ -361,6 +427,38 @@ export const AdaptiveShell: React.FC = () => {
         </div>
       </header>
 
+      {/* Low Medication Supply Global Banner Alert */}
+      {activeLowSupplyNotice && (
+        <div className="bg-amber-500 text-white px-4 py-2.5 text-xs font-bold flex items-center justify-between gap-3 shadow-md animate-fade-in">
+          <div className="flex items-center gap-2 max-w-7xl mx-auto w-full">
+            <AlertTriangle className="w-4 h-4 shrink-0 animate-pulse" />
+            <span className="flex-1">
+              ⚠️ <strong>Low Supply Push Alert:</strong> Only {activeLowSupplyNotice.remainingSupply} {activeLowSupplyNotice.unit} of {activeLowSupplyNotice.medicationName} remaining. Please reorder from pharmacy.
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const med = medications.find((m) => m.name === activeLowSupplyNotice.medicationName);
+                  if (med) refillMedication(med.id, 30);
+                  dismissLowSupplyNotice();
+                }}
+                className="px-2.5 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold cursor-pointer transition-colors"
+              >
+                +30 Refill
+              </button>
+              <button
+                type="button"
+                onClick={dismissLowSupplyNotice}
+                className="p-1 hover:bg-amber-600 rounded-lg cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Caregiver Feedback Loop Notice (Addresses Alert Fatigue) */}
       {lastFeedbackNotice && (
         <div className="bg-emerald-800 text-white px-4 py-2.5 text-xs font-semibold flex items-center justify-between gap-3 shadow-inner animate-fade-in">
@@ -470,7 +568,7 @@ export const AdaptiveShell: React.FC = () => {
                 }`}
               >
                 <MessageSquare className="w-6 h-6" />
-                <span className="text-xs">Ask Sathi</span>
+                <span className="text-xs">Ask SAATHI</span>
               </button>
 
               <button
@@ -543,7 +641,7 @@ export const AdaptiveShell: React.FC = () => {
                 }`}
               >
                 <MessageSquare className="w-5 h-5" />
-                <span className="text-[11px]">Ask Sathi</span>
+                <span className="text-[11px]">Ask SAATHI</span>
               </button>
             </>
           ) : (
@@ -606,7 +704,7 @@ export const AdaptiveShell: React.FC = () => {
                 }`}
               >
                 <MessageSquare className="w-5 h-5" />
-                <span className="text-[11px]">Ask Sathi</span>
+                <span className="text-[11px]">Ask SAATHI</span>
               </button>
             </>
           )}

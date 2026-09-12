@@ -152,16 +152,11 @@ export const PredictiveSymptomForecaster: React.FC<PredictiveSymptomForecasterPr
 
     // Record on timeline
     addTimelineEvent({
-      id: `caregiver-prep-${Date.now()}`,
-      time: `Today, ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
       type: 'doctor_visit',
       title: `Proactive Risk Alert Sent to ${designatedContact.name}`,
-      category: 'Caregiver Notification',
-      description: `Sent proactive heads-up for ${day.formattedDate} (${day.dayOfWeek}) - Anticipated recurring symptoms: ${day.likelySymptoms.map((s) => s.name).join(', ') || 'Post-op soreness'}.`,
-      status: 'completed',
-      source: 'patient_reported',
-      doctorNotes: `Proactive recovery pacing recommendation shared with family caregiver.`,
-      tags: ['Caregiver Alert', 'Predictive Analysis', day.topCategory],
+      detail: `Sent proactive heads-up for ${day.formattedDate} (${day.dayOfWeek}) - Anticipated recurring symptoms: ${day.likelySymptoms.map((s) => s.name).join(', ') || 'Post-op soreness'}.`,
+      provenance: 'patient_reported',
+      statusBadge: 'Dispatched',
     });
   };
 

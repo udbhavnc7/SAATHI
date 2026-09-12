@@ -46,6 +46,10 @@ export const MedicinesScreen: React.FC = () => {
     medications,
     toggleMedication,
     undoMedication,
+    refillMedication,
+    triggerTestLowSupplyAlert,
+    activeLowSupplyNotice,
+    dismissLowSupplyNotice,
     medicationAdherenceRate,
     openOnboarding,
     doseAlerts,
@@ -351,11 +355,157 @@ export const MedicinesScreen: React.FC = () => {
         </div>
       )}
 
+      {/* Active Low Supply Notice Banner */}
+      {activeLowSupplyNotice && (
+        <div className="p-4 rounded-2xl bg-amber-500/15 border-2 border-amber-500/60 dark:bg-amber-950/40 dark:border-amber-500/80 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fade-in">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-sm animate-pulse">
+              <AlertTriangle className="w-5 h-5" />
+            </div>
+            <div>
+              <h4 className="font-black text-amber-900 dark:text-amber-300 text-sm">
+                ⚠️ Low Medication Supply Push Alert Triggered!
+              </h4>
+              <p className="text-xs text-amber-800 dark:text-amber-200">
+                Only <strong className="font-black">{activeLowSupplyNotice.remainingSupply} {activeLowSupplyNotice.unit}</strong> left of <strong>{activeLowSupplyNotice.medicationName}</strong>. Push notification and alert chime dispatched.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 self-end sm:self-center">
+            <button
+              type="button"
+              onClick={() => {
+                const med = medications.find((m) => m.name === activeLowSupplyNotice.medicationName);
+                if (med) refillMedication(med.id, 30);
+                dismissLowSupplyNotice();
+              }}
+              className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors cursor-pointer shadow-xs"
+            >
+              Order +30 Refill
+            </button>
+            <button
+              type="button"
+              onClick={dismissLowSupplyNotice}
+              className="p-1.5 rounded-xl text-amber-800 dark:text-amber-300 hover:bg-amber-500/20 cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Medication Supply & Dosage Inventory Section */}
+      <div
+        id="medication-supply-inventory-card"
+        className="p-5 rounded-3xl bg-white dark:bg-[#111827] border border-slate-200 dark:border-slate-800 shadow-xs space-y-4"
+      >
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-10 h-10 rounded-2xl bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 flex items-center justify-center shrink-0 border border-amber-300 dark:border-amber-800">
+              <Pill className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                  Medication Dosage Counts &amp; Supply Inventory
+                </h3>
+                <span className="px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
+                  Auto Low-Supply Push Alerts
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Tracks total prescribed counts and remaining inventory. Automatically fires browser push notifications and alarms when remaining doses reach your refill threshold.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => triggerTestLowSupplyAlert()}
+              className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-xs active:scale-98"
+              title="Test browser push notification and alert chime for low medication supply"
+            >
+              <Bell className="w-3.5 h-3.5" />
+              <span>Test Low-Supply Push Alert</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Inventory Items Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {medications.map((med) => {
+            const remaining = med.remainingSupply ?? 15;
+            const total = med.totalCount ?? 30;
+            const percent = Math.min(100, Math.round((remaining / total) * 100));
+            const isLow = remaining <= (med.refillThreshold ?? 5);
+
+            return (
+              <div
+                key={med.id}
+                className={`p-3.5 rounded-2xl border transition-all space-y-2 ${
+                  isLow
+                    ? 'bg-amber-50/60 dark:bg-amber-950/20 border-amber-400 dark:border-amber-600 shadow-xs'
+                    : 'bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700/80'
+                }`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <span className="font-bold text-xs text-slate-900 dark:text-white block">
+                      {med.name}
+                    </span>
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                      {med.dosage} · Scheduled: {med.timing}
+                    </span>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                    isLow
+                      ? 'bg-amber-500 text-white animate-pulse'
+                      : 'bg-emerald-100 dark:bg-emerald-950 text-emerald-900 dark:text-emerald-300'
+                  }`}>
+                    {isLow ? '⚠️ LOW SUPPLY' : 'In Stock'}
+                  </span>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between text-[11px] font-mono mb-1">
+                    <span className="text-slate-500 dark:text-slate-400">Remaining Balance:</span>
+                    <span className={`font-bold ${isLow ? 'text-amber-600 dark:text-amber-400' : 'text-slate-800 dark:text-slate-200'}`}>
+                      {remaining} / {total} {med.unit || 'tablets'} ({percent}%)
+                    </span>
+                  </div>
+                  <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ${
+                        isLow ? 'bg-amber-500' : percent > 40 ? 'bg-emerald-500' : 'bg-blue-500'
+                      }`}
+                      style={{ width: `${percent}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-1 text-xs">
+                  <span className="text-[10px] text-slate-400">
+                    Threshold: ≤{med.refillThreshold ?? 5} {med.unit || 'tablets'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => refillMedication(med.id, 30)}
+                    className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold transition-colors cursor-pointer"
+                  >
+                    +30 Refill
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
       {/* Medication Dosage Scheduling & Local Notification Alerts Section */}
       <div
         id="medication-dose-alerts-manager"
-        className="p-5 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-4"
+        className="p-5 rounded-3xl bg-white dark:bg-[#111827] border border-slate-200 dark:border-slate-800 shadow-xs space-y-4"
       >
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
           <div className="flex items-center gap-2.5">
@@ -614,6 +764,28 @@ export const MedicinesScreen: React.FC = () => {
                   })()}
                 </div>
 
+                {/* Elder Supply Counter */}
+                <div className="mt-3 flex items-center justify-between p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-sm">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Pill className="w-4 h-4 text-amber-600" />
+                    <span className="font-bold text-slate-900 dark:text-white">
+                      Supply Balance: {med.remainingSupply ?? 15} / {med.totalCount ?? 30} {med.unit || 'tablets'}
+                    </span>
+                    {(med.remainingSupply ?? 15) <= (med.refillThreshold ?? 5) && (
+                      <span className="px-2 py-0.5 rounded-full text-xs font-black bg-amber-500 text-white animate-pulse">
+                        ⚠️ Low Supply Alert
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => refillMedication(med.id, 30)}
+                    className="px-3 py-1 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                  >
+                    +30 Refill
+                  </button>
+                </div>
+
                 <div className="mt-5">
                   {med.takenToday ? (
                     <div className="flex items-center justify-between p-4 bg-emerald-100 rounded-2xl text-emerald-950 font-bold text-lg">
@@ -694,6 +866,26 @@ export const MedicinesScreen: React.FC = () => {
                           </span>
                         );
                       })()}
+                    </div>
+
+                    {/* Stock Inventory & Refill Line */}
+                    <div className="mt-2.5 flex items-center gap-2 flex-wrap text-xs">
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[11px] font-bold text-slate-800 dark:text-slate-200">
+                        <Pill className="w-3.5 h-3.5 text-amber-500" />
+                        <span>Supply: {med.remainingSupply ?? 15} / {med.totalCount ?? 30} {med.unit || 'tablets'}</span>
+                      </div>
+                      {(med.remainingSupply ?? 15) <= (med.refillThreshold ?? 5) && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-500 text-white animate-pulse">
+                          ⚠️ Low Supply
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => refillMedication(med.id, 30)}
+                        className="px-2 py-0.5 rounded-md bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 text-[10px] font-bold cursor-pointer transition-colors"
+                      >
+                        +30 Refill
+                      </button>
                     </div>
                   </div>
                 </div>

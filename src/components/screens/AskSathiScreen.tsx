@@ -46,9 +46,9 @@ export const AskSathiScreen: React.FC<{ onNavigate: (tab: string) => void }> = (
       id: 'm1',
       sender: 'sathi',
       text: isElder
-        ? `Namaste ${profile.name} ji. I am Sathi, your personal health companion. You can ask me anytime: "When is my next medicine?", "When is my doctor visit?", or "What did Dr. Mehta say?"`
-        : `Hello ${profile.name}. I am Sathi, your recovery companion. I am grounded in your hospital discharge plan, verified medications, and safety rules. How can I help you today?`,
-      source: 'SATHI Core System',
+        ? `Namaste ${profile.name} ji. I am SAATHI, your personal health companion. You can ask me anytime: "When is my next medicine?", "When is my doctor visit?", or "What did Dr. Mehta say?"`
+        : `Hello ${profile.name}. I am SAATHI, your recovery companion. I am grounded in your hospital discharge plan, verified medications, and safety rules. How can I help you today?`,
+      source: 'SAATHI Core System',
       actionButtons: [
         { label: 'When is my next medicine?', action: () => handleSendPrompt('When is my next medicine?') },
         { label: 'Upcoming doctor appointment', action: () => handleSendPrompt('When is my next doctor appointment?') },

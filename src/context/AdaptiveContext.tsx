@@ -41,8 +41,10 @@ interface AdaptiveContextType {
   profile: Profile;
   setProfile: (p: Profile) => void;
   availableProfiles: Profile[];
+  allAvailableProfiles: Profile[];
   switchProfileById: (id: string) => void;
   urgencyState: UrgencyLevel;
+  dismissCaregiverAlert: (id: string) => void;
 
   // App Mode & Role Selection (Patient vs Caretaker vs Splash)
   appMode: AppMode;
@@ -264,30 +266,30 @@ const DEFAULT_PROFILES: Profile[] = [
     pediatricGuardrail: 'Guardian verification strictly required for all pediatric dosing.',
   },
   {
-    id: 'caregiver-ananya',
-    patientCode: 'PAT-8492',
-    name: 'Ananya Sharma (Caregiver)',
-    age: 38,
-    gender: 'Female',
+    id: 'patient-ud827',
+    patientCode: 'UD827',
+    name: 'Udbhav Chandra',
+    age: 54,
+    gender: 'Male',
     ageBand: 'adult',
-    role: 'caregiver',
-    digitalLiteracy: 'high',
+    role: 'patient',
+    digitalLiteracy: 'medium',
     accessibility: {
       largeText: false,
       highContrast: false,
-      voicePrimary: false,
+      voicePrimary: true,
       reducedMotion: false,
     },
-    diagnosis: 'Care Coordinator for Ramesh Sharma (Father)',
-    hospitalName: 'Metro Heart & Surgical Institute',
-    dischargeDate: 'Monitoring Active',
-    caregiverName: 'Ananya Sharma',
+    diagnosis: 'Post-Stent Angioplasty (LAD Drug-Eluting Stent) & Stage 2 Hypertension with Chronic Mild Gastritis',
+    hospitalName: 'Apollo Specialty Heart Institute',
+    dischargeDate: 'Sept 10, 2026',
+    caregiverName: 'Ananya Sharma (Care Coordinator)',
     caregiverPhone: '+91 98201 44521',
-    doctorName: 'Dr. Rajesh Mehta',
-    doctorSpecialty: 'Cardiothoracic Surgery',
-    doctorPhone: '+91 98110 32900',
-    bloodGroup: 'B Positive (B+)',
-    allergies: ['None'],
+    doctorName: 'Dr. Vikramaditya Sen',
+    doctorSpecialty: 'Senior Interventional Cardiologist',
+    doctorPhone: '+91 98210 55432',
+    bloodGroup: 'O Positive (O+)',
+    allergies: ['NSAIDs (Aspirin sensitivity cautiously monitored)', 'Shellfish'],
   },
 ];
 
@@ -1294,11 +1296,11 @@ Action Needed: Immediate check or clinical review. Call patient now!`;
 
   // Switch profile
   const switchProfileById = useCallback((id: string) => {
-    const found = DEFAULT_PROFILES.find((p) => p.id === id);
+    const found = allAvailableProfiles.find((p) => p.id === id || (p.patientCode && p.patientCode.toUpperCase() === id.toUpperCase()));
     if (found) {
       setProfile(found);
     }
-  }, []);
+  }, [allAvailableProfiles]);
 
   // Toggle Care Circle permission
   const toggleCareCirclePermission = useCallback((memberId: string, permKey: keyof CareCircleMember['permissions']) => {
@@ -1373,19 +1375,59 @@ Action Needed: Immediate check or clinical review. Call patient now!`;
     );
 
     const med = medications.find((m) => m.id === id);
-    if (med && !med.takenToday) {
-      setTimeline((prev) => [
-        {
-          id: `time-${Date.now()}`,
-          timestamp: 'Just now',
-          title: `Medicine Taken: ${med.name} (${med.dosage})`,
-          detail: `Logged as taken at ${now}. Inventory balance: ${updatedSupplyCount} ${med.unit || 'tablets'}.`,
-          type: 'medication',
-          provenance: 'patient_reported',
-          statusBadge: 'Confirmed',
-        },
-        ...prev,
-      ]);
+    if (med) {
+      if (isNowTaken) {
+        setTimeline((prev) => [
+          {
+            id: `time-${Date.now()}`,
+            timestamp: 'Just now',
+            title: `Medicine Taken: ${med.name} (${med.dosage})`,
+            detail: `Logged as taken at ${now}. Inventory balance: ${updatedSupplyCount} ${med.unit || 'tablets'}.`,
+            type: 'medication',
+            provenance: 'patient_reported',
+            statusBadge: 'Confirmed',
+          },
+          ...prev,
+        ]);
+
+        // Automatically dispatch dose confirmation notification to Caretaker console
+        setCaregiverAlerts((prev) => [
+          {
+            id: `alt-dose-taken-${Date.now()}`,
+            patientId: profile.id,
+            patientName: profile.name,
+            patientCode: profile.patientCode || 'PAT-8492',
+            timestamp: 'Just now',
+            title: `💊 Dose Confirmed: ${med.name}`,
+            detail: `${profile.name} took ${med.name} (${med.dosage}) at ${now}. Remaining supply: ${updatedSupplyCount} ${med.unit || 'tablets'}.`,
+            urgency: 'info',
+            status: 'active',
+            type: 'general',
+            medicationName: med.name,
+            remainingSupply: updatedSupplyCount,
+          },
+          ...prev,
+        ]);
+      } else {
+        // Automatically dispatch dose untaken notification to Caretaker console
+        setCaregiverAlerts((prev) => [
+          {
+            id: `alt-dose-untaken-${Date.now()}`,
+            patientId: profile.id,
+            patientName: profile.name,
+            patientCode: profile.patientCode || 'PAT-8492',
+            timestamp: 'Just now',
+            title: `↩️ Dose Untaken: ${med.name}`,
+            detail: `${profile.name} marked ${med.name} (${med.dosage}) as untaken. Remaining inventory restored to ${updatedSupplyCount} ${med.unit || 'tablets'}.`,
+            urgency: 'warning',
+            status: 'active',
+            type: 'medication_missed',
+            medicationName: med.name,
+            remainingSupply: updatedSupplyCount,
+          },
+          ...prev,
+        ]);
+      }
     }
 
     // Trigger low supply alert if threshold reached
@@ -1423,10 +1465,14 @@ Action Needed: Immediate check or clinical review. Call patient now!`;
   }, [medications, profile.name, profile.id, profile.patientCode]);
 
   const undoMedication = useCallback((id: string) => {
+    let unDoneMedName = '';
+    let restoredCount = 0;
     setMedications((prev) =>
       prev.map((med) => {
         if (med.id === id) {
+          unDoneMedName = med.name;
           const restoredSupply = (med.remainingSupply ?? 29) + 1;
+          restoredCount = restoredSupply;
           return {
             ...med,
             takenToday: false,
@@ -1440,7 +1486,27 @@ Action Needed: Immediate check or clinical review. Call patient now!`;
     setDoseAlerts((prev) =>
       prev.map((alert) => (alert.medicationId === id ? { ...alert, status: 'pending', lastTakenAt: undefined } : alert))
     );
-  }, []);
+
+    if (unDoneMedName) {
+      setCaregiverAlerts((prev) => [
+        {
+          id: `alt-undo-${Date.now()}`,
+          patientId: profile.id,
+          patientName: profile.name,
+          patientCode: profile.patientCode || 'PAT-8492',
+          timestamp: 'Just now',
+          title: `↩️ Dose Untaken: ${unDoneMedName}`,
+          detail: `${profile.name} reverted dose mark for ${unDoneMedName}. Current inventory: ${restoredCount}.`,
+          urgency: 'warning',
+          status: 'active',
+          type: 'medication_missed',
+          medicationName: unDoneMedName,
+          remainingSupply: restoredCount,
+        },
+        ...prev,
+      ]);
+    }
+  }, [profile.id, profile.name, profile.patientCode]);
 
   // Refill medication supply
   const refillMedication = useCallback((id: string, additionalCount: number = 30) => {
@@ -1990,11 +2056,13 @@ Action Needed: Immediate check or clinical review. Call patient now!`;
             id: `alt-${Date.now()}`,
             patientId: profile.id,
             patientName: profile.name,
+            patientCode: profile.patientCode || 'PAT-8492',
             timestamp: 'Just now',
             title: triage.alertMessage,
             detail: `Reported by ${profile.name}: "${symptomText}". Category: ${finalCategory}. Reason: ${triage.reason}`,
             urgency: triage.safetyState === 'ESCALATE' ? 'urgent' : 'warning',
             status: 'active',
+            type: 'symptom',
           };
           setCaregiverAlerts((prev) => [newAlert, ...prev]);
         }
@@ -2031,7 +2099,7 @@ Action Needed: Immediate check or clinical review. Call patient now!`;
         return fallbackLog;
       }
     },
-    [profile.id, profile.name, urgencyState, openQuickAlert]
+    [profile.id, profile.name, profile.patientCode, urgencyState, openQuickAlert]
   );
 
   // Voice Health Log (Web Speech API -> Structured & Persisted Text Logs)
@@ -2234,6 +2302,12 @@ Action Needed: Immediate check or clinical review. Call patient now!`;
 
   const clearFeedbackNotice = useCallback(() => setLastFeedbackNotice(null), []);
 
+  const dismissCaregiverAlert = useCallback((id: string) => {
+    setCaregiverAlerts((prev) =>
+      prev.map((a) => (a.id === id ? { ...a, status: 'acknowledged' } : a))
+    );
+  }, []);
+
   // Confirm document
   const confirmDocument = useCallback((id: string) => {
     setDocuments((prev) =>
@@ -2354,14 +2428,16 @@ Action Needed: Immediate check or clinical review. Call patient now!`;
       id: `alt-sos-${Date.now()}`,
       patientId: profile.id,
       patientName: profile.name,
+      patientCode: profile.patientCode || 'PAT-8492',
       timestamp: 'Just now',
       title: `EMERGENCY SOS Triggered by ${profile.name}!`,
       detail: customReason || 'Patient tapped Emergency SOS button. Immediate check required.',
       urgency: 'urgent',
       status: 'active',
+      type: 'emergency',
     };
     setCaregiverAlerts((prev) => [newAlert, ...prev]);
-  }, [profile.id, profile.name, profile.bloodGroup, profile.allergies, profile.caregiverPhone, profile.doctorPhone]);
+  }, [profile.id, profile.name, profile.patientCode, profile.bloodGroup, profile.allergies, profile.caregiverPhone, profile.doctorPhone]);
 
   // Voice narration (Web Speech API)
   const speakText = useCallback((text: string) => {
@@ -2458,6 +2534,8 @@ Action Needed: Immediate check or clinical review. Call patient now!`;
         caregiverAlerts,
         acknowledgeAlert,
         dismissAlertNotUrgent,
+        dismissCaregiverAlert,
+        allAvailableProfiles,
         lastFeedbackNotice,
         clearFeedbackNotice,
         documents,

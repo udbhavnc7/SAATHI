@@ -17,6 +17,7 @@ export type ProvenanceTag =
   | 'user_confirmed'
   | 'patient_reported'
   | 'caregiver_added'
+  | 'caregiver_entered'
   | 'ai_extracted';
 
 export interface Profile {
@@ -196,7 +197,7 @@ export interface TimelineEvent {
   timestamp: string;
   title: string;
   detail: string;
-  type: 'medication' | 'symptom' | 'discharge' | 'appointment' | 'task' | 'document' | 'daily_update' | 'voice_log';
+  type: 'medication' | 'symptom' | 'discharge' | 'appointment' | 'task' | 'document' | 'daily_update' | 'voice_log' | 'caregiver_note' | 'doctor_visit';
   provenance: ProvenanceTag;
   statusBadge?: string;
 }
