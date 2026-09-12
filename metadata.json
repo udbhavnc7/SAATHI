@@ -1,0 +1,10 @@
+{
+  "name": "SATHI - Adaptive Health Companion",
+  "description": "Adaptive, voice-first personal health and recovery companion that adjusts its interface to every age, role, and health situation.",
+  "requestFramePermissions": [
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
